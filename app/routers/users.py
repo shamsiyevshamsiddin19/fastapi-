@@ -1,8 +1,9 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from .. import models, oauth2, schemas
 from ..database import get_db
+from ..utils.email import send_welcome_email, write_log
 from ..utils.hashing import hash_password, verify_password
 
 router = APIRouter(
@@ -13,7 +14,11 @@ router = APIRouter(
 
 # ─── CREATE USER ──────────────────────────────
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.UserResponse)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: schemas.UserCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """
     Yangi foydalanuvchini ro'yxatdan o'tkazish.
 
@@ -39,7 +44,24 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Fonda email yuborish — foydalanuvchi kutmaydi!
+    background_tasks.add_task(
+        send_welcome_email,
+        email=new_user.email,
+        username=new_user.username,
+    )
+
+    # Fonda log yozish
+    background_tasks.add_task(
+        write_log,
+        action="user_created",
+        user_id=new_user.id,
+        details=f"email={new_user.email}",
+    )
+
     return new_user
+
 
 
 # ─── GET ALL USERS ────────────────────────────

@@ -13,3 +13,7 @@ python-jose[cryptography]>=3.5.0
 python-multipart>=0.0.32
 alembic>=1.13.0
 gunicorn>=21.2.0
+pytest>=8.0.0
+pytest-cov>=5.0.0
+aiofiles>=24.0.0
+fastapi-mail>=1.4.0

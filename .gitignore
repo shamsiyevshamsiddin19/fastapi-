@@ -3,7 +3,11 @@ __pycache__/
 *.pyc
 .env
 .pytest_cache/
+.coverage
+htmlcov/
 *.log
 *.zip
 .idea/
 .vscode/
+uploads/*
+!uploads/.gitkeep

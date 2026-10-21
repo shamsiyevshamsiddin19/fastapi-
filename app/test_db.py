@@ -1,8 +1,13 @@
 from .database import engine
 
-try:
-    connection = engine.connect()
-    print("✅ PostgreSQL ga muvaffaqiyatli ulandi!")
-    connection.close()
-except Exception as e:
-    print(f"❌ Xato: {e}")
+
+def check_database_connection():
+    try:
+        with engine.connect():
+            print("PostgreSQL ga muvaffaqiyatli ulandi!")
+    except Exception as error:
+        print(f"Ulanishda xato: {error}")
+
+
+if __name__ == "__main__":
+    check_database_connection()

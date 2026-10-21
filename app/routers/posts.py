@@ -1,8 +1,9 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from .. import models, oauth2, schemas
 from ..database import get_db
+from ..utils.email import send_post_notification
 
 router = APIRouter(
     prefix="/posts",
@@ -14,6 +15,7 @@ router = APIRouter(
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
 def create_post(
     post: schemas.PostCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(oauth2.get_current_user)
 ):
@@ -45,7 +47,16 @@ def create_post(
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
+
+    # Fonda post bildirishi yuborish
+    background_tasks.add_task(
+        send_post_notification,
+        author_email=current_user.email,
+        title=new_post.title,
+    )
+
     return new_post
+
 
 
 # ─── READ ALL POSTS (Qidiruv + Pagination) ────

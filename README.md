@@ -52,3 +52,18 @@ Brauzerda:
 - API Root: `http://127.0.0.1:8000/`
 - Swagger UI (Hujjatlar): `http://127.0.0.1:8000/docs`
 - ReDoc: `http://127.0.0.1:8000/redoc`
+
+## Testlarni ishga tushirish
+
+Testlar production bazasiga ulanmaydi; ular har test uchun xotiradagi SQLite bazasidan foydalanadi.
+
+```bash
+pytest
+```
+
+Coverage hisobotida testlanmagan qatorlar ham ko'rinadi. Bitta test fayli yoki testni alohida ishga tushirish mumkin:
+
+```bash
+pytest tests/test_posts.py
+pytest tests/test_posts.py::test_create_post
+```

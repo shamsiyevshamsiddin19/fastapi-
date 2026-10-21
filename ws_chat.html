@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat — FastAPI WebSockets</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f1f5f9;
+            color: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 720px;
+        }
+
+        /* CARD */
+        .card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        .chat-header {
+            background: #2563eb;
+            color: #ffffff;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .room-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* LOGIN FORM */
+        .login-body {
+            padding: 28px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            color: #2563eb;
+            background: #eff6ff;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #334155;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: #2563eb;
+        }
+        .hint {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        /* CHAT VIEW */
+        .chat-view {
+            display: none;
+        }
+        #messages {
+            height: 420px;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f8fafc;
+        }
+        .msg {
+            display: flex;
+            flex-direction: column;
+            max-width: 75%;
+        }
+        .msg.mine {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+        .msg.other {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+        .msg.system {
+            align-self: center;
+            max-width: 100%;
+            text-align: center;
+        }
+        .msg-info {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 3px;
+            font-weight: 500;
+        }
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .msg.mine .bubble {
+            background: #2563eb;
+            color: #ffffff;
+            border-bottom-right-radius: 3px;
+        }
+        .msg.other .bubble {
+            background: #ffffff;
+            color: #0f172a;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 3px;
+        }
+        .msg.system .bubble {
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        #typingIndicator {
+            height: 22px;
+            font-size: 12px;
+            color: #64748b;
+            font-style: italic;
+            padding: 2px 20px;
+            background: #f8fafc;
+        }
+        .chat-footer {
+            padding: 12px 16px;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .chat-footer input {
+            flex: 1;
+            padding: 11px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 24px;
+            outline: none;
+            font-size: 14px;
+        }
+        .chat-footer input:focus {
+            border-color: #2563eb;
+        }
+        .btn-send {
+            padding: 10px 20px;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+        }
+        .btn-send:hover {
+            background: #1d4ed8;
+        }
+        .btn-leave {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-leave:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <!-- HEADER -->
+        <div class="chat-header">
+            <h2 id="headerTitle">💬 FastAPI Real-time Chat</h2>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span id="roomBadge" class="room-badge" style="display:none;">general</span>
+                <span id="usersCount" class="room-badge" style="display:none;">👥 1 kishi</span>
+                <button id="leaveBtn" class="btn-leave" onclick="disconnect()" style="display:none;">Chiqish</button>
+            </div>
+        </div>
+
+        <!-- LOGIN / CONNECTION VIEW -->
+        <div id="loginView" class="login-body">
+            <div class="tabs">
+                <button id="tabOpen" class="tab-btn active" onclick="switchMode('open')">1. Ochiq Xona (Username bilan)</button>
+                <button id="tabSecure" class="tab-btn" onclick="switchMode('secure')">2. Himoyalangan (JWT Token bilan)</button>
+            </div>
+
+            <div class="form-group">
+                <label for="roomInput">Xona nomi (Room):</label>
+                <input type="text" id="roomInput" value="general" placeholder="masalan: general yoki dasturlash" />
+            </div>
+
+            <div id="usernameGroup" class="form-group">
+                <label for="usernameInput">Sizning ismingiz:</label>
+                <input type="text" id="usernameInput" value="Ali" placeholder="Ismingizni yozing" />
+            </div>
+
+            <div id="tokenGroup" class="form-group" style="display:none;">
+                <label for="tokenInput">JWT Access Token:</label>
+                <input type="text" id="tokenInput" placeholder="/login orqali olingan JWT token" />
+                <div class="hint">Postman yoki /login endpointi orqali olingan tokenni kiriting.</div>
+            </div>
+
+            <button class="btn-primary" onclick="connect()">Chatga Kirish</button>
+        </div>
+
+        <!-- CHAT VIEW -->
+        <div id="chatView" class="chat-view">
+            <div id="messages"></div>
+            <div id="typingIndicator"></div>
+            <div class="chat-footer">
+                <input type="text" id="msgInput" placeholder="Xabar yozing..." />
+                <button class="btn-send" onclick="sendMessage()">Yuborish</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let ws = null;
+    let authMode = 'open';
+    let currentRoom = '';
+    let currentUsername = '';
+    let typingTimeout = null;
+
+    function switchMode(mode) {
+        authMode = mode;
+        const tabOpen = document.getElementById("tabOpen");
+        const tabSecure = document.getElementById("tabSecure");
+        const usernameGroup = document.getElementById("usernameGroup");
+        const tokenGroup = document.getElementById("tokenGroup");
+
+        if (mode === 'open') {
+            tabOpen.className = "tab-btn active";
+            tabSecure.className = "tab-btn";
+            usernameGroup.style.display = "block";
+            tokenGroup.style.display = "none";
+        } else {
+            tabOpen.className = "tab-btn";
+            tabSecure.className = "tab-btn active";
+            usernameGroup.style.display = "none";
+            tokenGroup.style.display = "block";
+        }
+    }
+
+    function connect() {
+        const room = document.getElementById("roomInput").value.trim();
+        if (!room) {
+            alert("Xona nomini kiriting!");
+            return;
+        }
+        currentRoom = room;
+
+        let wsUrl = '';
+        if (authMode === 'open') {
+            const username = document.getElementById("usernameInput").value.trim();
+            if (!username) {
+                alert("Ismingizni kiriting!");
+                return;
+            }
+            currentUsername = username;
+            wsUrl = `ws://${window.location.host || 'localhost:8000'}/ws/chat/${room}/${encodeURIComponent(username)}`;
+        } else {
+            const token = document.getElementById("tokenInput").value.trim();
+            if (!token) {
+                alert("JWT Access token kiriting!");
+                return;
+            }
+            currentUsername = "Siz (JWT)";
+            wsUrl = `ws://${window.location.host || 'localhost:8000'}/ws/chat/${room}?token=${encodeURIComponent(token)}`;
+        }
+
+        try {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                document.getElementById("loginView").style.display = "none";
+                document.getElementById("chatView").style.display = "block";
+                document.getElementById("roomBadge").style.display = "inline-block";
+                document.getElementById("roomBadge").textContent = `Xona: ${currentRoom}`;
+                document.getElementById("usersCount").style.display = "inline-block";
+                document.getElementById("leaveBtn").style.display = "inline-block";
+                document.getElementById("msgInput").focus();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleIncomingMessage(data);
+                } catch (e) {
+                    addSimpleMessage(event.data, "system");
+                }
+            };
+
+            ws.onclose = (event) => {
+                const reason = event.code === 1008 ? " (Noto'g'ri yoki yaroqsiz JWT token)" : "";
+                addSimpleMessage(`❌ Ulanish yopildi${reason}`, "system");
+                document.getElementById("usersCount").style.display = "none";
+            };
+
+            ws.onerror = () => {
+                addSimpleMessage("⚠️ WebSocket xatolik yuz berdi", "system");
+            };
+        } catch (err) {
+            alert("Ulanishda xatolik: " + err);
+        }
+    }
+
+    function disconnect() {
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+        document.getElementById("loginView").style.display = "block";
+        document.getElementById("chatView").style.display = "none";
+        document.getElementById("roomBadge").style.display = "none";
+        document.getElementById("usersCount").style.display = "none";
+        document.getElementById("leaveBtn").style.display = "none";
+        document.getElementById("messages").innerHTML = "";
+    }
+
+    function handleIncomingMessage(data) {
+        const messagesDiv = document.getElementById("messages");
+
+        if (data.type === "typing") {
+            const indicator = document.getElementById("typingIndicator");
+            indicator.textContent = `✍️ ${data.username} yozmoqda...`;
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                indicator.textContent = "";
+            }, 2500);
+            return;
+        }
+
+        if (data.type === "system") {
+            if (data.users_count !== undefined) {
+                document.getElementById("usersCount").textContent = `👥 ${data.users_count} kishi`;
+            }
+            const div = document.createElement("div");
+            div.className = "msg system";
+            div.innerHTML = `<div class="bubble">${data.timestamp ? data.timestamp + ' — ' : ''}${data.message}</div>`;
+            messagesDiv.appendChild(div);
+        } else {
+            const isMine = data.username === currentUsername;
+            const div = document.createElement("div");
+            div.className = `msg ${isMine ? 'mine' : 'other'}`;
+            div.innerHTML = `
+                <div class="msg-info">${isMine ? 'Siz' : data.username} · ${data.timestamp || ''}</div>
+                <div class="bubble">${escapeHtml(data.message)}</div>
+            `;
+            messagesDiv.appendChild(div);
+        }
+
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function addSimpleMessage(text, type) {
+        const messagesDiv = document.getElementById("messages");
+        const div = document.createElement("div");
+        div.className = `msg ${type}`;
+        div.innerHTML = `<div class="bubble">${text}</div>`;
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function sendMessage() {
+        const input = document.getElementById("msgInput");
+        const text = input.value.trim();
+        if (text && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(text);
+            input.value = "";
+        }
+    }
+
+    // Typing notification trigger
+    const msgInput = document.getElementById("msgInput");
+    let lastTypingSent = 0;
+    msgInput.addEventListener("input", () => {
+        const now = Date.now();
+        if (now - lastTypingSent > 2000 && ws && ws.readyState === WebSocket.OPEN) {
+            lastTypingSent = now;
+            ws.send(JSON.stringify({ type: "typing" }));
+        }
+    });
+
+    msgInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+            sendMessage();
+        }
+    });
+</script>
+</body>
+</html>
